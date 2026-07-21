@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Http\Requests\ChatRequest;
+use App\Services\AI\ConversationService;
 use App\Services\AI\GroqService;
 use App\Services\AI\GeminiService;
 use App\Services\AI\HuggingFaceService;
@@ -66,27 +68,24 @@ class ChatController extends Controller
         return response()->json($result['reply']);
     }
 
-    public function chat(Request $request)
+    public function chat(ChatRequest $request)
     {
-        $request->validate([
-            'message' => 'required|string'
-        ]);
+        $provider = new GroqService();
+        $conversationService = new ConversationService($provider);
 
-        $service = new GroqService();
-        $result = $service->sendMessage($request->message);
+        $result = $conversationService->respond(
+            $request->input('message'),
+            $request->input('conversation_id')
+        );
 
         if (!$result['success']) {
             return response()->json($result, 400);
         }
 
-        Chat::create([
-            'question' => $request->message,
-            'answer' => $result['reply']
-        ]);
-
         return response()->json([
             'success' => true,
-            'reply' => $result['reply']
+            'reply' => $result['reply'],
+            'conversation_id' => $result['conversation_id'],
         ]);
     }
 }

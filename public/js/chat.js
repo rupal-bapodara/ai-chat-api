@@ -4,6 +4,8 @@ $.ajaxSetup({
     }
 });
 
+let currentConversationId = null;
+
 $("#send").click(function () {
     let message = $("#message").val();
 
@@ -16,10 +18,15 @@ $("#send").click(function () {
     $("#reply").html("");
 
     $.post("/chat", {
-        message: message
+        message: message,
+        conversation_id: currentConversationId
     }, function (response) {
         $("#loading").hide();
         $("#reply").html(response.reply);
+
+        if (response.conversation_id) {
+            currentConversationId = response.conversation_id;
+        }
     }).fail(function () {
         $("#loading").hide();
         alert("Something went wrong.");

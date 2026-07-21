@@ -19,22 +19,27 @@ class GroqService implements AIProviderInterface
 
     public function sendMessage(string $message): array
     {
+        return $this->createChatCompletion([
+            [
+                'role' => 'system',
+                'content' => 'You are a helpful AI assistant.'
+            ],
+            [
+                'role' => 'user',
+                'content' => $message
+            ]
+        ]);
+    }
+
+    public function createChatCompletion(array $messages): array
+    {
         $response = Http::withToken($this->apiKey)
             ->acceptJson()
             ->post(self::API_ENDPOINT, [
                 'model' => $this->model,
-                'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => 'You are a helpful AI assistant.'
-                    ],
-                    [
-                        'role' => 'user',
-                        'content' => $message
-                    ]
-                ],
+                'messages' => $messages,
                 'temperature' => 0.7,
-                'max_tokens' => 1024
+                'max_tokens' => 1024,
             ]);
 
         Log::info('Groq API Response: ' . $response->body());
@@ -49,7 +54,7 @@ class GroqService implements AIProviderInterface
         return [
             'success' => true,
             'reply' => data_get($response->json(), 'choices.0.message.content', 'No response'),
-            'raw_response' => $response->json()
+            'raw_response' => $response->json(),
         ];
     }
 
