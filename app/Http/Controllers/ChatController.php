@@ -10,6 +10,7 @@ use App\Services\AI\HuggingFaceService;
 use App\Services\RAG\ConversationRagService;
 use App\Services\RAG\DocumentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ChatController extends Controller
@@ -49,7 +50,7 @@ class ChatController extends Controller
             'message' => 'required|string',
         ]);
 
-        $service = new GeminiService();
+        $service = new GeminiService;
         $result = $service->sendMessage($request->message);
 
         if (! $result['success']) {
@@ -75,7 +76,7 @@ class ChatController extends Controller
             'message' => 'required|string',
         ]);
 
-        $service = new HuggingFaceService();
+        $service = new HuggingFaceService;
         $result = $service->sendMessage($request->message);
 
         if (! $result['success']) {
@@ -92,6 +93,8 @@ class ChatController extends Controller
             $request->input('conversation_id'),
             $request->input('document_id')
         );
+
+        Log::info('Chat response: ' . json_encode($result));
 
         if (! $result['success']) {
             return response()->json($result, 400);

@@ -4,29 +4,31 @@ namespace App\Services\RAG;
 
 use App\Models\Chat;
 use App\Models\Conversation;
-use App\Models\Document;
 use App\Services\AI\GroqService;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class ConversationRagService
 {
     public function __construct(
         protected GroqService $provider,
         protected DocumentIndexingService $indexingService,
-    ) {
-    }
+    ) {}
 
     public function respond(string $message, ?int $conversationId = null, ?int $documentId = null): array
     {
         $conversation = $this->resolveConversation($conversationId);
+        Log::info('Resolved conversation ID: ' . $conversation->id);
         $context = [];
 
         if ($documentId) {
             $context = $this->buildContext($message, $documentId);
         }
+        Log::info('Built context: ' . json_encode($context));
 
         $systemPrompt = $this->buildSystemPrompt($context);
+        Log::info('System prompt: ' . $systemPrompt);
         $messages = $this->buildMessages($conversation, $message, $context);
+        Log::info('Sending messages: ' . json_encode($messages));
         $result = $this->provider->createChatCompletion($messages);
 
         if (! $result['success']) {

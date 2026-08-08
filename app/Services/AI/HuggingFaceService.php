@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Log;
 class HuggingFaceService implements AIProviderInterface
 {
     private string $apiToken;
+
     private string $model;
+
     private const API_ENDPOINT = 'https://huggingface.co/api/models/';
 
     public function __construct()
@@ -35,14 +37,14 @@ class HuggingFaceService implements AIProviderInterface
         if ($response->failed()) {
             return [
                 'success' => false,
-                'error' => $response->json('error.message') ?? 'Unknown error occurred'
+                'error' => $response->json('error.message') ?? 'Unknown error occurred',
             ];
         }
 
         return [
             'success' => true,
             'reply' => $response->json(),
-            'raw_response' => $response->json()
+            'raw_response' => $response->json(),
         ];
     }
 

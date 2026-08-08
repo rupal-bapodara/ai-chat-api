@@ -6,7 +6,6 @@ use App\Models\Document;
 use App\Models\DocumentChunk;
 use App\Models\DocumentContent;
 use App\Models\DocumentEmbedding;
-use Illuminate\Support\Str;
 
 class DocumentIndexingService
 {
@@ -38,6 +37,7 @@ class DocumentIndexingService
 
             if (mb_strlen($candidate) <= $chunkSize) {
                 $current = $candidate;
+
                 continue;
             }
 

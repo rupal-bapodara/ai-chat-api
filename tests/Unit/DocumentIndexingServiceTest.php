@@ -9,7 +9,7 @@ class DocumentIndexingServiceTest extends TestCase
 {
     public function test_it_chunks_text_into_reasonable_segments(): void
     {
-        $service = new DocumentIndexingService();
+        $service = new DocumentIndexingService;
 
         $text = str_repeat('Laravel is a framework for building web applications. ', 20);
 
@@ -22,7 +22,7 @@ class DocumentIndexingServiceTest extends TestCase
 
     public function test_it_matches_resume_sections_like_professional_summary(): void
     {
-        $service = new DocumentIndexingService();
+        $service = new DocumentIndexingService;
 
         $score = $service->scoreChunkAgainstQuestion('professional summary', 'Professional Summary: Experienced software engineer with a strong record in Laravel and API delivery.');
 

@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Log;
 class GeminiService implements AIProviderInterface
 {
     private string $apiKey;
+
     private string $model;
+
     private const API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
     public function __construct()
@@ -26,11 +28,11 @@ class GeminiService implements AIProviderInterface
                     [
                         'parts' => [
                             [
-                                'text' => $message
-                            ]
-                        ]
-                    ]
-                ]
+                                'text' => $message,
+                            ],
+                        ],
+                    ],
+                ],
             ]
         );
 
@@ -39,14 +41,14 @@ class GeminiService implements AIProviderInterface
         if ($response->failed()) {
             return [
                 'success' => false,
-                'error' => $response->json('error.message') ?? 'Unknown error occurred'
+                'error' => $response->json('error.message') ?? 'Unknown error occurred',
             ];
         }
 
         return [
             'success' => true,
             'reply' => data_get($response->json(), 'candidates.0.content.parts.0.text', 'No response'),
-            'raw_response' => $response->json()
+            'raw_response' => $response->json(),
         ];
     }
 

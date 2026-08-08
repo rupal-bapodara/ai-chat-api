@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Log;
 class GroqService implements AIProviderInterface
 {
     private string $apiKey;
+
     private string $model;
+
     private const API_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
     public function __construct()
@@ -22,12 +24,12 @@ class GroqService implements AIProviderInterface
         return $this->createChatCompletion([
             [
                 'role' => 'system',
-                'content' => 'You are a helpful AI assistant.'
+                'content' => 'You are a helpful AI assistant.',
             ],
             [
                 'role' => 'user',
-                'content' => $message
-            ]
+                'content' => $message,
+            ],
         ]);
     }
 
@@ -47,7 +49,7 @@ class GroqService implements AIProviderInterface
         if ($response->failed()) {
             return [
                 'success' => false,
-                'error' => $response->json('error.message') ?? 'Unknown error occurred'
+                'error' => $response->json('error.message') ?? 'Unknown error occurred',
             ];
         }
 

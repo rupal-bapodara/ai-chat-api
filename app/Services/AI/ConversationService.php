@@ -10,15 +10,11 @@ class ConversationService
 {
     private const MAX_PREVIOUS_EXCHANGES = 12;
 
-    public function __construct(private GroqService $provider)
-    {
-    }
+    public function __construct(private GroqService $provider) {}
 
     /**
      * Send user text along with the current conversation history.
      *
-     * @param string $message
-     * @param int|null $conversationId
      * @return array<string, mixed>
      */
     public function respond(string $message, ?int $conversationId = null): array
@@ -29,7 +25,7 @@ class ConversationService
 
         $result = $this->provider->createChatCompletion($messages);
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return $result;
         }
 
@@ -71,24 +67,24 @@ class ConversationService
         $messages = [
             [
                 'role' => 'system',
-                'content' => 'You are a helpful AI assistant. Use the conversation history to answer the user accurately.'
-            ]
+                'content' => 'You are a helpful AI assistant. Use the conversation history to answer the user accurately.',
+            ],
         ];
 
         foreach ($chats as $chat) {
             $messages[] = [
                 'role' => 'user',
-                'content' => $chat->question
+                'content' => $chat->question,
             ];
             $messages[] = [
                 'role' => 'assistant',
-                'content' => $chat->answer
+                'content' => $chat->answer,
             ];
         }
 
         $messages[] = [
             'role' => 'user',
-            'content' => $currentMessage
+            'content' => $currentMessage,
         ];
 
         return $messages;

@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Laravel PDF Chat</title>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <link rel="stylesheet" href="{{ asset('css/chat.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/chat.css') }}" />
 </head>
 
 <body>
@@ -18,7 +17,7 @@
 
         <form action="{{ route('documents.upload') }}" method="POST" enctype="multipart/form-data" class="upload-box">
             @csrf
-            <input type="file" name="documents[]" multiple accept="application/pdf">
+            <input type="file" name="documents[]" multiple accept="application/pdf" />
             <button type="submit">Upload PDFs</button>
         </form>
 
@@ -30,8 +29,11 @@
                         <li>
                             <strong>{{ $document->original_name }}</strong>
                             <span>{{ $document->status }}</span>
-                            <form action="{{ route('documents.delete', $document) }}" method="POST"
-                                style="display:inline">
+                            <form
+                                action="{{ route('documents.delete', $document) }}"
+                                method="POST"
+                                style="display: inline"
+                            >
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="danger">Delete</button>
@@ -59,5 +61,4 @@
 
     <script src="{{ asset('js/chat.js') }}"></script>
 </body>
-
 </html>

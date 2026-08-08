@@ -7,12 +7,11 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Smalot\PdfParser\Parser;
+use Illuminate\Support\Facades\Log;
 
 class DocumentService
 {
-    public function __construct(protected DocumentIndexingService $indexingService)
-    {
-    }
+    public function __construct(protected DocumentIndexingService $indexingService) {}
 
     public function storeUploadedDocuments(array $files, ?int $userId = null): array
     {
@@ -47,10 +46,14 @@ class DocumentService
     public function indexDocument(Document $document): void
     {
         $rawText = $this->extractTextFromPdf($document->path);
+        Log::info("come");
         $pages = $this->splitIntoPages($rawText);
+        Log::info('Extracted ' . count($pages) . ' pages from document ID ' . $document->id);
         $this->indexingService->storeParsedContent($document, $pages);
 
         foreach ($document->chunks()->get() as $chunk) {
+            Log::info('Indexing chunk ID ' . $chunk->id . ' for document ID ' . $document->id);
+            Log::info(json_encode($chunk->toArray()));
             $this->indexingService->indexChunk($chunk);
         }
     }
@@ -63,7 +66,7 @@ class DocumentService
             throw new \RuntimeException('Document file could not be found on disk.');
         }
 
-        $parser = new Parser();
+        $parser = new Parser;
         $pdf = $parser->parseFile($absolutePath);
 
         return $pdf->getText() ?: '';
