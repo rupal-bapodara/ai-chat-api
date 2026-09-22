@@ -14,6 +14,7 @@ class Chat extends Model
      */
     protected $fillable = [
         'conversation_id',
+        'document_id',
         'question',
         'answer',
     ];

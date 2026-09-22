@@ -4,6 +4,7 @@ namespace App\Services\AI;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class GroqService implements AIProviderInterface
 {
@@ -15,8 +16,8 @@ class GroqService implements AIProviderInterface
 
     public function __construct()
     {
-        $this->apiKey = env('GROQ_API_KEY');
-        $this->model = env('GROQ_MODEL', 'mixtral-8x7b-32768');
+        $this->apiKey = config('services.groq.key');
+        $this->model = config('services.groq.model');
     }
 
     public function sendMessage(string $message): array
@@ -44,9 +45,12 @@ class GroqService implements AIProviderInterface
                 'max_tokens' => 1024,
             ]);
 
-        Log::info('Groq API Response: ' . $response->body());
-
         if ($response->failed()) {
+            Log::warning('Groq API request failed', [
+                'status' => $response->status(),
+                'body' => Str::limit($response->body(), 500),
+            ]);
+
             return [
                 'success' => false,
                 'error' => $response->json('error.message') ?? 'Unknown error occurred',

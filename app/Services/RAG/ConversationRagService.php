@@ -17,18 +17,20 @@ class ConversationRagService
     public function respond(string $message, ?int $conversationId = null, ?int $documentId = null): array
     {
         $conversation = $this->resolveConversation($conversationId);
-        Log::info('Resolved conversation ID: ' . $conversation->id);
         $context = [];
 
         if ($documentId) {
             $context = $this->buildContext($message, $documentId);
         }
-        Log::info('Built context: ' . json_encode($context));
 
-        $systemPrompt = $this->buildSystemPrompt($context);
-        Log::info('System prompt: ' . $systemPrompt);
         $messages = $this->buildMessages($conversation, $message, $context);
-        Log::info('Sending messages: ' . json_encode($messages));
+
+        Log::debug('RAG context built', [
+            'conversation_id' => $conversation->id,
+            'document_id' => $documentId,
+            'chunk_count' => count($context['context'] ?? []),
+        ]);
+
         $result = $this->provider->createChatCompletion($messages);
 
         if (! $result['success']) {

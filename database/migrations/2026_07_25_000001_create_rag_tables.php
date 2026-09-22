@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -43,9 +44,19 @@ return new class extends Migration
         Schema::create('document_embeddings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('chunk_id')->constrained('document_chunks')->cascadeOnDelete();
-            $table->longText('embedding');
             $table->timestamps();
         });
+
+        // Laravel's Blueprint has no native pgvector column type, so the
+        // embedding column and its ANN index are added via raw SQL. 384
+        // dimensions matches sentence-transformers/all-MiniLM-L6-v2 (see
+        // config/embeddings.php). HNSW is used over IVFFlat because IVFFlat
+        // needs a `lists` parameter tuned to the eventual row count and
+        // retraining as data grows -- a poor fit for a table that starts
+        // empty and grows one upload at a time. vector_cosine_ops matches
+        // how sentence-transformer embeddings are intended to be compared.
+        DB::statement('ALTER TABLE document_embeddings ADD COLUMN embedding vector(384) NOT NULL');
+        DB::statement('CREATE INDEX document_embeddings_embedding_hnsw_idx ON document_embeddings USING hnsw (embedding vector_cosine_ops)');
 
         Schema::table('chats', function (Blueprint $table) {
             $table->foreignId('document_id')->nullable()->constrained()->nullOnDelete();

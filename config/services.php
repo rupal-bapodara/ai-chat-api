@@ -35,4 +35,19 @@ return [
         ],
     ],
 
+    'groq' => [
+        'key' => env('GROQ_API_KEY'),
+        'model' => env('GROQ_MODEL', 'openai/gpt-oss-120b'),
+    ],
+
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.0-flash-lite'),
+    ],
+
+    'huggingface' => [
+        'token' => env('HF_API_TOKEN'),
+        'chat_model' => env('HF_MODEL', 'google/gemma-2-2b-it'),
+    ],
+
 ];

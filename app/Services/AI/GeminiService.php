@@ -4,6 +4,7 @@ namespace App\Services\AI;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class GeminiService implements AIProviderInterface
 {
@@ -15,8 +16,8 @@ class GeminiService implements AIProviderInterface
 
     public function __construct()
     {
-        $this->apiKey = env('GEMINI_API_KEY');
-        $this->model = env('GEMINI_MODEL', 'gemini-2.0-flash-lite');
+        $this->apiKey = config('services.gemini.key');
+        $this->model = config('services.gemini.model');
     }
 
     public function sendMessage(string $message): array
@@ -36,9 +37,12 @@ class GeminiService implements AIProviderInterface
             ]
         );
 
-        Log::info('Gemini API Response: ' . $response->body());
-
         if ($response->failed()) {
+            Log::warning('Gemini API request failed', [
+                'status' => $response->status(),
+                'body' => Str::limit($response->body(), 500),
+            ]);
+
             return [
                 'success' => false,
                 'error' => $response->json('error.message') ?? 'Unknown error occurred',

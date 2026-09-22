@@ -10,7 +10,6 @@ use App\Services\AI\HuggingFaceService;
 use App\Services\RAG\ConversationRagService;
 use App\Services\RAG\DocumentService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ChatController extends Controller
@@ -94,10 +93,11 @@ class ChatController extends Controller
             $request->input('document_id')
         );
 
-        Log::info('Chat response: ' . json_encode($result));
-
         if (! $result['success']) {
-            return response()->json($result, 400);
+            // A failure here means the upstream AI provider errored or was
+            // unreachable, not that the client sent a bad request -- 502,
+            // not 400 (see .ai/rules/resources.md).
+            return response()->json($result, 502);
         }
 
         return response()->json([

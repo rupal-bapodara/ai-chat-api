@@ -2,12 +2,13 @@
 
 namespace App\Services\RAG;
 
+use App\Jobs\GenerateDocumentEmbeddingsJob;
 use App\Models\Document;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Smalot\PdfParser\Parser;
-use Illuminate\Support\Facades\Log;
 
 class DocumentService
 {
@@ -46,16 +47,14 @@ class DocumentService
     public function indexDocument(Document $document): void
     {
         $rawText = $this->extractTextFromPdf($document->path);
-        Log::info("come");
         $pages = $this->splitIntoPages($rawText);
-        Log::info('Extracted ' . count($pages) . ' pages from document ID ' . $document->id);
+        Log::debug('Extracted pages from document', ['document_id' => $document->id, 'page_count' => count($pages)]);
+
         $this->indexingService->storeParsedContent($document, $pages);
 
-        foreach ($document->chunks()->get() as $chunk) {
-            Log::info('Indexing chunk ID ' . $chunk->id . ' for document ID ' . $document->id);
-            Log::info(json_encode($chunk->toArray()));
-            $this->indexingService->indexChunk($chunk);
-        }
+        // Embedding generation is slow external API work -- it runs in a
+        // queued job, not inline in the upload request (.ai/rules/jobs.md).
+        GenerateDocumentEmbeddingsJob::dispatch($document->id);
     }
 
     protected function extractTextFromPdf(string $path): string

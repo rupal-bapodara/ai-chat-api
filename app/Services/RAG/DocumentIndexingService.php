@@ -6,14 +6,15 @@ use App\Models\Document;
 use App\Models\DocumentChunk;
 use App\Models\DocumentContent;
 use App\Models\DocumentEmbedding;
+use App\Repositories\Contracts\DocumentChunkRepositoryInterface;
+use App\Services\AI\EmbeddingProviderInterface;
 
 class DocumentIndexingService
 {
-    protected array $stopWords = [
-        'a', 'an', 'and', 'are', 'as', 'at', 'be', 'but', 'by', 'for', 'from',
-        'give', 'give me', 'i', 'in', 'is', 'it', 'me', 'of', 'on', 'or', 'our',
-        'the', 'their', 'this', 'to', 'what', 'with', 'you', 'your',
-    ];
+    public function __construct(
+        protected EmbeddingProviderInterface $embeddingProvider,
+        protected DocumentChunkRepositoryInterface $chunkRepository,
+    ) {}
 
     public function chunkText(string $text, int $chunkSize = 800): array
     {
@@ -65,9 +66,10 @@ class DocumentIndexingService
             ]);
         }
 
+        $chunkSize = (int) config('rag.chunk_size', 800);
         $chunks = [];
         foreach ($pages as $pageNumber => $content) {
-            $pageChunks = $this->chunkText($content);
+            $pageChunks = $this->chunkText($content, $chunkSize);
             foreach ($pageChunks as $index => $chunk) {
                 $chunks[] = [
                     'document_id' => $document->id,
@@ -82,123 +84,41 @@ class DocumentIndexingService
             DocumentChunk::insert($chunks);
         }
 
-        $document->update(['status' => 'indexed', 'indexed_at' => now()]);
+        // Embeddings aren't generated yet at this point -- that happens in
+        // GenerateDocumentEmbeddingsJob, dispatched by DocumentService.
+        // 'indexed' is only correct once every chunk has a real vector.
+        $document->update(['status' => 'processing']);
     }
 
-    public function createEmbedding(string $text): array
-    {
-        $normalized = $this->normalizeText($text);
-
-        if ($normalized === '') {
-            return [];
-        }
-
-        $tokens = $this->tokenize($normalized);
-        $counts = [];
-
-        foreach ($tokens as $token) {
-            $counts[$token] = ($counts[$token] ?? 0) + 1;
-        }
-
-        return $counts;
-    }
-
+    /**
+     * Generate and store a real embedding vector for a chunk. Idempotent:
+     * safe to call again on retry (e.g. after a partial job failure)
+     * without creating duplicate embedding rows for the same chunk.
+     */
     public function indexChunk(DocumentChunk $chunk): void
     {
-        $embedding = $this->createEmbedding($chunk->content);
+        $embedding = $this->embeddingProvider->embed($chunk->content);
 
-        DocumentEmbedding::create([
-            'chunk_id' => $chunk->id,
-            'embedding' => json_encode($embedding),
-        ]);
+        DocumentEmbedding::updateOrCreate(
+            ['chunk_id' => $chunk->id],
+            ['embedding' => $embedding]
+        );
     }
 
+    /**
+     * Retrieve the top-K chunks of a document most relevant to a question,
+     * ranked by real cosine similarity via pgvector (not keyword overlap).
+     */
     public function buildRetrievalContext(string $question, int $documentId): array
     {
-        $document = Document::findOrFail($documentId);
-        $chunks = $document->chunks()->with('embedding')->get();
+        $questionEmbedding = $this->embeddingProvider->embed($question);
+        $topK = (int) config('rag.top_k', 5);
 
-        $questionEmbedding = $this->createEmbedding($question);
-        $scored = [];
+        $results = $this->chunkRepository->findNearestByDocument($documentId, $questionEmbedding, $topK);
 
-        foreach ($chunks as $chunk) {
-            $embedding = $chunk->embedding ? json_decode($chunk->embedding->embedding, true, 512, JSON_THROW_ON_ERROR) : [];
-            $score = $this->scoreChunkAgainstQuestion($question, $chunk->content);
-            $scored[] = [
-                'chunk' => $chunk,
-                'score' => $score,
-            ];
-        }
-
-        usort($scored, fn ($left, $right) => $right['score'] <=> $left['score']);
-
-        return array_slice($scored, 0, 5);
-    }
-
-    public function scoreChunkAgainstQuestion(string $question, string $chunk): float
-    {
-        $questionTokens = $this->tokenize($this->normalizeText($question));
-        $chunkTokens = $this->tokenize($this->normalizeText($chunk));
-
-        if ($questionTokens === [] || $chunkTokens === []) {
-            return 0.0;
-        }
-
-        $questionSet = array_fill_keys($questionTokens, true);
-        $overlap = 0;
-
-        foreach ($chunkTokens as $token) {
-            if (isset($questionSet[$token])) {
-                $overlap++;
-            }
-        }
-
-        $phraseBoost = 0.0;
-        $normalizedQuestion = implode(' ', $questionTokens);
-        $normalizedChunk = implode(' ', $chunkTokens);
-
-        if ($normalizedQuestion !== '' && str_contains($normalizedChunk, $normalizedQuestion)) {
-            $phraseBoost = 0.4;
-        }
-
-        return min(1.0, (($overlap / max(1, count($questionTokens))) * 0.8) + $phraseBoost);
-    }
-
-    public function cosineSimilarity(array $a, array $b): float
-    {
-        $keys = array_unique(array_merge(array_keys($a), array_keys($b)));
-        $dot = 0.0;
-        $normA = 0.0;
-        $normB = 0.0;
-
-        foreach ($keys as $key) {
-            $valueA = $a[$key] ?? 0;
-            $valueB = $b[$key] ?? 0;
-            $dot += $valueA * $valueB;
-            $normA += $valueA * $valueA;
-            $normB += $valueB * $valueB;
-        }
-
-        if ($normA === 0.0 || $normB === 0.0) {
-            return 0.0;
-        }
-
-        return $dot / (sqrt($normA) * sqrt($normB));
-    }
-
-    protected function normalizeText(string $text): string
-    {
-        return mb_strtolower(trim(preg_replace('/[^\p{L}\p{N}\s]/u', ' ', $text) ?? ''));
-    }
-
-    protected function tokenize(string $text): array
-    {
-        $tokens = preg_split('/\s+/', $this->normalizeText($text));
-
-        if ($tokens === false) {
-            return [];
-        }
-
-        return array_values(array_filter($tokens, fn (string $token) => $token !== '' && ! in_array($token, $this->stopWords, true)));
+        return array_map(fn (array $row) => [
+            'chunk' => $row['chunk'],
+            'score' => 1 - $row['distance'], // cosine distance -> similarity
+        ], $results);
     }
 }
