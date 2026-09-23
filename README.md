@@ -1,6 +1,8 @@
 # ai-chat-api
 
-A Laravel demo of a real LLM + vector search + RAG (Retrieval-Augmented Generation) pipeline: upload a PDF, it's parsed, chunked and embedded, and questions about it are answered by retrieving the most semantically similar chunks — via genuine PostgreSQL + pgvector cosine-similarity search, not keyword matching — and passing them to an LLM as context.
+**In plain terms:** upload a PDF and chat with it. Ask a question, and the app finds the exact passages in the document that actually answer it, then has an AI model write a reply grounded in that text (with the source passages cited) — instead of the AI guessing from general knowledge or the app doing a dumb keyword search.
+
+**Under the hood:** a Laravel demo of a real LLM + vector search + RAG (Retrieval-Augmented Generation) pipeline: upload a PDF, it's parsed, chunked and embedded, and questions about it are answered by retrieving the most semantically similar chunks — via genuine PostgreSQL + pgvector cosine-similarity search, not keyword matching — and passing them to an LLM as context.
 
 ## How it works
 
