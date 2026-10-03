@@ -8,11 +8,13 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Smalot\PdfParser\Parser;
 
 class DocumentService
 {
-    public function __construct(protected DocumentIndexingService $indexingService) {}
+    public function __construct(
+        protected DocumentIndexingService $indexingService,
+        protected PdfTextExtractor $extractor,
+    ) {}
 
     public function storeUploadedDocuments(array $files, ?int $userId = null): array
     {
@@ -46,41 +48,25 @@ class DocumentService
 
     public function indexDocument(Document $document): void
     {
-        $rawText = $this->extractTextFromPdf($document->path);
-        $pages = $this->splitIntoPages($rawText);
-        Log::debug('Extracted pages from document', ['document_id' => $document->id, 'page_count' => count($pages)]);
+        try {
+            $pages = $this->extractor->extractPages(Storage::disk('local')->path($document->path));
 
-        $this->indexingService->storeParsedContent($document, $pages);
+            if ($pages === []) {
+                throw new \RuntimeException('No extractable text found in the PDF.');
+            }
+
+            Log::debug('Extracted pages from document', ['document_id' => $document->id, 'page_count' => count($pages)]);
+
+            $this->indexingService->storeParsedContent($document, $pages);
+        } catch (\Throwable $e) {
+            $document->update(['status' => 'failed']);
+            Log::error("Text extraction failed for document {$document->id}", ['exception' => $e->getMessage()]);
+
+            return;
+        }
 
         // Embedding generation is slow external API work -- it runs in a
         // queued job, not inline in the upload request (.ai/rules/jobs.md).
         GenerateDocumentEmbeddingsJob::dispatch($document->id);
-    }
-
-    protected function extractTextFromPdf(string $path): string
-    {
-        $absolutePath = Storage::disk('local')->path($path);
-
-        if (! file_exists($absolutePath)) {
-            throw new \RuntimeException('Document file could not be found on disk.');
-        }
-
-        $parser = new Parser;
-        $pdf = $parser->parseFile($absolutePath);
-
-        return $pdf->getText() ?: '';
-    }
-
-    protected function splitIntoPages(string $text): array
-    {
-        $pages = preg_split('/(?=\n{2,})/', trim($text));
-
-        if ($pages === false) {
-            return [$text];
-        }
-
-        $pages = array_values(array_filter(array_map('trim', $pages), fn ($page) => $page !== ''));
-
-        return $pages !== [] ? $pages : [$text];
     }
 }

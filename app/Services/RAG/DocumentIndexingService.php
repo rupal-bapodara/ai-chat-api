@@ -18,7 +18,10 @@ class DocumentIndexingService
 
     public function chunkText(string $text, int $chunkSize = 800): array
     {
-        $normalized = preg_replace('/\s+/', ' ', trim($text));
+        // Treat bullet separators as plain separators so a contact line
+        // ("City • phone • email") stays one run of text, not fragments.
+        $text = str_replace(['•', '●', '▪', '·'], '|', $text);
+        $normalized = preg_replace('/\s+/u', ' ', trim($text));
 
         if ($normalized === null || trim($normalized) === '') {
             return [];

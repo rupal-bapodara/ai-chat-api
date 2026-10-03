@@ -32,6 +32,19 @@ class GenerateDocumentEmbeddingsJob implements ShouldQueue
         $document = Document::findOrFail($this->documentId);
         $document->update(['status' => 'processing']);
 
+        try {
+            $this->embedChunks($document, $indexingService);
+        } catch (Throwable $e) {
+            Log::error("Embedding attempt {$this->attempts()} failed for document {$this->documentId}", [
+                'exception' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    private function embedChunks(Document $document, DocumentIndexingService $indexingService): void
+    {
         // whereDoesntHave('embedding') makes this idempotent: a retry after
         // a partial failure only re-embeds chunks that don't have one yet.
         foreach ($document->chunks()->whereDoesntHave('embedding')->get() as $chunk) {
